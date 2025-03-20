@@ -1,3 +1,4 @@
+import gym
 import pettingzoo
 from gymnasium import spaces
 import numpy as np
@@ -29,6 +30,8 @@ class SimpleOvercooked(ParallelEnv):
         self.possible_agents = self.agents[:]
         self.action_spaces = {agent: spaces.Discrete(5) for agent in self.agents}  # 5 actions
 
+        self.max_penalty=-1   # a parameter needed in original code, it works only in FrozenLake?
+
 
         self.observation_spaces = {
             agent: spaces.Dict({
@@ -37,6 +40,7 @@ class SimpleOvercooked(ParallelEnv):
                 "action_mask": spaces.MultiBinary(5),  # Binary mask for 5 actions
             }) for agent in self.agents
         }
+        self.reset()
 
 
     def get_action_mask(self, agent):
@@ -94,6 +98,7 @@ class SimpleOvercooked(ParallelEnv):
             x = self.obs.get(agent)[1]
             item = self.obs.get(agent)[2]
             act=actions[i]
+            print(self.get_action_mask(agent),act)
             if self.get_action_mask(agent)[act]==0:
                 continue
             print(action_mp)
@@ -156,5 +161,86 @@ class SimpleOvercooked(ParallelEnv):
 
     def render(self):
         print(self.obs)
+
+    def set(self,state):
+        for agent in state:
+            s=state.get(agent)
+            self.obs["map"]=s["observation"]
+            self.obs[agent]=s["cord"]
+    def check_done(self,state):
+        done=False
+        for agent in self.agents:
+            obs=state[agent]
+            y = obs["cord"][0]
+            x = obs["cord"][1]
+            item = obs["cord"][2]
+            if self.obs.get("map")[y][x]+item==0 and item!=0:
+                done=True
+        return done
+
+
+
+class wrapped_env_cf(gym.Wrapper):
+    def __init__(self, env,agent_list,agent):
+        super().__init__(env)
+        self.agent_policy=agent_list
+        self.idx=agent
+
+
+    def step(self, action):
+        ret = self.env.observe()
+        actions=[]
+        for agent in self.agents:
+            i=self.agents.index(agent)
+            a=self.agent_policy[i].predict(ret)
+            actions.append(a)
+        print(actions)
+        actions[self.idx]=action
+        print(actions)
+        return self.env.step(actions)
+    def get_actions(self,state):
+        x=self.env.get_action_mask(self.agents[self.idx])
+        l=len(x)
+        ret=[]
+        for i in range(0,l):
+            if x[i]!=0:
+                ret.append(i)
+        return ret
+
+    def check_done(self, state):
+        return self.env.check_done(state)
+
+    def set_state(self,state):
+        self.set(state)
+
+    def realistic(self, x):
+        ''' Returns a boolean indicating if x is a valid state in the environment (e.g. chess state without kings is not valid)'''
+        return True
+
+    def actionable(self, x, fact):
+        ''' Returns a boolean indicating if all immutable features remain unchanged between x and fact states'''
+        return True
+
+    def flatten_state_noMask(self,state):
+        ret=np.array([])
+        for agent in self.agents:
+            mp=np.array([item for row in state[agent]["observation"] for item in row])
+            a= np.array(state[agent]["cord"])
+            ret = np.concatenate((ret,mp,a))
+        return ret
+
+
+    def equal_states(self, obs , state):
+        eq=False
+        obs=self.flatten_state_noMask(obs)
+        state=self.flatten_state_noMask(state)
+        print(obs,state)
+        eq= (obs==state).all()
+        print(eq)
+
+
+        return eq
+
+
 
 env = SimpleOvercooked()

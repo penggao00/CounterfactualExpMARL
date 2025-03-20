@@ -40,3 +40,30 @@ class agent_fixedpolicy():
                     return 1 # move right when at bottom
         return 0
 
+class agent1:
+    def __init__(self,opt,env):
+        self.model=agent_fixedpolicy(opt,env)
+    def predict(self, x):
+        x = x["agent_1"]
+        action = self.model.agent1(x.get("observation"),x.get("cord"))
+        return action
+
+    def get_action_prob(self,obs, a):
+        if self.predict(obs)==a:
+            return 1
+        else:
+            return 0
+
+class agent2:
+    def __init__(self, opt, env):
+        self.model = agent_fixedpolicy(opt, env)
+
+    def predict(self, x):
+        x=x["agent_2"]
+        action = self.model.agent2(x.get("observation"),x.get("cord"))
+        return action
+    def get_action_prob(self,obs, a):
+        if self.predict(obs)==a:
+            return 1
+        else:
+            return 0
