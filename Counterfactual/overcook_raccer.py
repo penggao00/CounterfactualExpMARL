@@ -2,18 +2,19 @@ import json
 
 from sympy.physics.vector.printing import params
 
-from alg.baselines.fid_raccer import (FidRACCER)
+# from alg.baselines.fid_raccer import (FidRACCER)
 # from alg.baselines.ganterfactual import GANterfactual
 # from alg.baselines.mcts_raccer import MCTSRACCER
-
+from alg.baselines.teammateObj_raccer import TMoRACCER
 # from src.envs.farm0 import Farm0
 # from src.envs.frozen_lake import FrozenLake
 # from src.envs.gridworld import Gridworld
 from alg.evaluation.eval import evaluate_objectives, get_realistic_df, split_df, print_summary_split, evaluate_all
 # from alg.models.bb_model import BBModel
-from alg.optimization.objs.fid_obj import FidObj
-from alg.optimization.objs.game_obj import GameObj
-from alg.optimization.objs.sl_obj import SLObj
+# from alg.optimization.objs.fid_obj import FidObj
+# from alg.optimization.objs.game_obj import GameObj
+# from alg.optimization.objs.sl_obj import SLObj
+from alg.optimization.objs.teammate_obj import TeammateObj
 # from src.tasks.task import Task
 # from src.utils.utils import seed_everything, load_facts_from_summary, load_facts_from_csv, generate_summary_states
 from env.overcooked import *
@@ -264,20 +265,22 @@ if __name__ == '__main__':
     #
     # main('frozen_lake', 'optim')
     # main('frozen_lake', 'suboptim')
-    from env.overcooked import *
-    from AgentPolicy.FixedPolicy_simple_oc import agent_fixedpolicy, agent1, agent2
+    from env.overcooked2 import *
+    from AgentPolicy.FixedPolicy_simple_oc import agent_fixedpolicy, agent1_fix,agent2_fix
 
-    env = SimpleOvercooked()
-    env2 = SimpleOvercooked()
-    p1=agent1(2,env)
-    p2=agent2(opt=2,env=env2)
+    p1=agent1_fix(2)
+    p2=agent2_fix(opt=2)
     env3 = SimpleOvercooked()
-    env_cf=wrapped_env_cf(env3,[p1,p2],1)  # p2 -> 1(agent idx)
+    env_cf=wrapped_env_cf(env3,[p1,p2],0)  # p2 -> 1(agent idx)
+    print(env_cf.extract_others())
 
     f={'agent_1': {'observation': [[1, 7, 0, 0, -2], [0, 9, 0, 0, 0], [0, 9, 0, 0, 0], [0, 9, 0, 0, 0], [2, 7, 0, 0, -1]], 'cord': [2, 0, 0], 'action_mask': [1., 1., 1., 1., 1.]}, 'agent_2': {'observation': [[1, 7, 0, 0, -2], [0, 9, 0, 0, 0], [0, 9, 0, 0, 0], [0, 9, 0, 0, 0], [2, 7, 0, 0, -1]], 'cord': [2, 3, 0], 'action_mask': [1., 1., 1., 1., 1.]}}
-    t=2
+    f=env_cf.reset()
+    print("2323",f)
+    # draw(f)
+    t=4
     params={
-    "layer_shapes": [[32, 512], [512, 512], [512, 26]],
+    # "layer_shapes": [[32, 512], [512, 512], [512, 26]],
     "ts_n_iter": 300,
     "ts_n_expand": 20,
     "n_sim": 10,
@@ -285,9 +288,13 @@ if __name__ == '__main__':
     "max_level": 20,
     "c": 0.7
     }
-    fid_raccer = FidRACCER(env_cf, p2, params)
-    cfs = fid_raccer.generate_counterfactuals(f, t)
+    tmo_raccer = TMoRACCER(env_cf, p2, params)
+    cfs = tmo_raccer.generate_counterfactuals(f, t)
     print(cfs.cf)
+    draw(cfs.cf)
+
+
+    # draw(cfs.cf)
     # for cf in cfs:
     #     found = True
     #     evaluate_cf(f, t, cf, found, cnt)
