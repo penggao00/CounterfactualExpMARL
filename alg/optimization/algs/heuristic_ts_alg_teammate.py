@@ -30,23 +30,42 @@ class HeuristicTSAlgorithmTM:
         self.cfs = []
 
         i = 0
+        print("root",self.root,target_action)
         while i < self.n_iter:
             i += 1
 
+
             node = self.select(self.root)
+            # print("iter:",i,node.show_node(),node.is_terminal())
+            # if node
 
             if (not node.is_terminal()) and (node.level < self.max_level):
                 new_nodes, action = self.expand(node)
-
+                # print("leaf",new_nodes.state)
                 for c in new_nodes:
+                    # print(c)
                     c.rank_value = c.get_reward()
                     c.rewards = c.get_reward_dict()
 
                     # if self.bb_model.predict(c.state) == target_action:
+                    # print("env_view",c.state)
                     teammate_view=self.env.opponent_view(c.state)
+                    # print(teammate_view)
+                    # if self.other.predict(teammate_view)==2:
+                    #     print("2!",self.env.realistic(teammate_view),self.env.actionable(teammate_view, fact))
                     if self.other.predict(teammate_view) == target_action:
+                        print("abc", c.state, teammate_view)
+                        print("act", self.other.predict(teammate_view))
+
                         if self.env.realistic(teammate_view) and self.env.actionable(teammate_view, fact):
+                            print("add cf",c.rewards,c.rank_value)
+                            # print(self.other)
+                            # self.other.extract(teammate_view)
+                            # print(self.other.teammate,self.other.info)
+                            # print(self.other.map)
+                            # print(self.other)
                             self.cfs.append((c.prev_actions, c.state, c.rewards, c.rank_value))
+                            # print(len(self.cfs))
 
                 if len(new_nodes):
                     self.backpropagate(new_nodes[0].parent)
@@ -95,7 +114,6 @@ class HeuristicTSAlgorithmTM:
             if action not in node.expanded_actions:
 
                 new_states, new_rewards = node.take_action(action, n_expand=self.n_expand)
-
                 try:
                     node.N_a[action] += 1
                 except KeyError:

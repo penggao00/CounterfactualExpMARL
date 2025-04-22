@@ -14,17 +14,17 @@ from wandb.cli.cli import agent
 # 1 and 2 means corresponding materials; food 1 should deliver to where -1 is; food 2 should deliver to where -2 is.
 # 9 is wall; 7 is where to transfer material; to simplify it, when agent 1 reach 1 or 2, immediately, change the neiborgh grid which is 7.
 # then agent 1 cannot move; agent 2 needs to move towards the transfer grid once to attain the food.
-original_map=[
+original_map=np.array([
 [1,7,0,0,-2],
 [0,9,0,0,0],
 [0,9,0,0,0],
 [0,9,0,0,0],
 [2,7,0,0,-1],
-]
-simple_cook1={"map":original_map,"agent_1":[2,0,0],"agent_2":[2,3,0]}
+])
+simple_cook1={"map":original_map,"agent_1":np.array([2,0,0]),"agent_2":np.array([2,2,0])}
 # map and agent[cord_y, cord_x, item]
 
-action_mp=[[0,0],[0,1],[1,0],[0,-1],[-1,0]]
+action_mp=np.array([[0,0],[0,1],[1,0],[0,-1],[-1,0]])
 class SimpleOvercooked(ParallelEnv):
     def __init__(self):
         super().__init__()
@@ -99,17 +99,17 @@ class SimpleOvercooked(ParallelEnv):
             x = self.obs.get(agent)[1]
             item = self.obs.get(agent)[2]
             act=actions[i]
-            print(self.get_action_mask(agent),act)
+            # print(self.get_action_mask(agent),act)
             if self.get_action_mask(agent)[act]==0:
                 continue
-            print(action_mp)
+            # print(action_mp)
 
             tmp_y = y+ action_mp[act][0]
             tmp_x = x + action_mp[act][1]
-            print(y,x,tmp_y,tmp_x,action_mp[actions[i]][0],action_mp[actions[i]][1])
+            # print(y,x,tmp_y,tmp_x,action_mp[actions[i]][0],action_mp[actions[i]][1])
             if tmp_y<0 or tmp_y>=self.size_y or tmp_x<0 or tmp_x>=self.size_x:
                 # come across boundry
-                print(tmp_x, tmp_y)
+                # print(tmp_x, tmp_y)
                 continue
             # print(tmp_x,tmp_y)
             if self.obs.get('map')[tmp_y][tmp_x]==9:
@@ -163,11 +163,11 @@ class SimpleOvercooked(ParallelEnv):
     def render(self):
         print(self.obs)
 
-    def set(self,state):
-        for agent in state:
-            s=state.get(agent)
-            self.obs["map"]=s["observation"]
-            self.obs[agent]=s["agent"]
+    # def set(self,state):
+        # for agent in state:
+        #     s=state.get(agent)
+        #     self.obs["map"]=s["observation"]
+        #     self.obs[agent]=s["agent"]
     def check_done(self,state):
         done=False
         map=self.obs.get("map")
@@ -191,29 +191,32 @@ class wrapped_env_cf(gym.Wrapper):
         if state is None:
             return self.env.observe()[agent]
         else:
+            # print("set",state,"obs",self.obs)
             self.set_state(state)
+            # print("after set",self.env.observe(),agent)
             return self.env.observe()[agent]
 
     def reset(self, seed=None, options=None):
-        self.size_y = 5
-        self.size_x = 5
-        self.obs=copy.deepcopy(simple_cook1)
-        self.done=False
-        self.agents = self.possible_agents[:]
+        self.env.size_y = 5
+        self.env.size_x = 5
+        self.env.obs=copy.deepcopy(simple_cook1)
+        self.env.done=False
+        self.env.agents = self.possible_agents[:]
         ag=self.agents[self.idx]
-        return self.observe()[ag]
+        return self.env.observe()[ag]
 
     def step(self, action):
         ret = self.env.observe()
         actions=[]
         for agent in self.agents:
-            i=self.agents.index(agent)
+            i=self.env.agents.index(agent)
             obs=ret[agent]
+
             a=self.agent_policy[i].predict(obs)
             actions.append(a)
-        print(actions)
+        # print(actions)
         actions[self.idx]=action
-        print(actions)
+        # print(actions)
         # return self.env.step(actions)
         observe, reward, done, _ = self.env.step(actions)
         ag=self.agents[self.idx]
@@ -229,12 +232,26 @@ class wrapped_env_cf(gym.Wrapper):
         return ret
 
     def check_done(self, state):
-        return self.env.check_done(state)
+        done=False
+        map=state.get("observation")
+        for agent in self.agents:
+            obs=state["others"][agent]
+            y = obs[0]
+            x = obs[1]
+            item = obs[2]
+            if map[y][x]+item==0 and item!=0 and map[y][x]<0:
+                done=True
+        return done
 
     def set_state(self,state):
-        self.obs["map"] = state["observation"]
+        # print("set",state,self.obs,simple_cook1)
+        # print(state["observation"],state["others"])
+        self.env.obs["map"] = copy.deepcopy(state["observation"])
         for agent in state["others"]:
-            self.obs[agent] = state["agent"]
+            # print(agent,          state["others"][agent])
+            self.env.obs[agent] = copy.deepcopy(state["others"][agent])
+        self.env.done=self.check_done(state)
+        # print("after set state function",self.env.obs,self.env.observe())
 
     def realistic(self, x):
         ''' Returns a boolean indicating if x is a valid state in the environment (e.g. chess state without kings is not valid)'''
@@ -286,20 +303,40 @@ def draw(state):
     fig, ax = plt.subplots(figsize=(6, 6))
 
     # Plot the grid world
+    # cmap = plt.cm.coolwarm
+    # ax.imshow(observation, cmap=cmap, interpolation='none',origin='upper')
+    #
+    # # Add annotations (cell values)
+    # for (j, i), val in np.ndenumerate(observation):
+    #     ax.text(i, j, val, ha='center', va='center', fontsize=12, color='black')
+    #
+    # # Mark agent positions and items
+    # for agent_name, (row, col, item) in agents.items():
+    #     ax.scatter(col, row, marker='o', s=300, label=agent_name, edgecolors='black', linewidths=1.5)
+    #     ax.text(col, row, agent_name, ha='center', va='center', color='white', fontsize=9)
+    #     if item != 0:
+    #         ax.text(col, row + 0.3, f'Item: {item}', ha='center', va='center', color='yellow', fontsize=7,
+    #                 fontweight='bold')
+
     cmap = plt.cm.coolwarm
-    ax.imshow(observation, cmap=cmap, interpolation='none')
+    ax.imshow(observation, cmap=cmap, interpolation='none', origin='upper')
+    l=5-1
+
 
     # Add annotations (cell values)
     for (j, i), val in np.ndenumerate(observation):
-        ax.text(i, j, val, ha='center', va='center', fontsize=12, color='black')
+        ax.text(i, l-j, val, ha='center', va='center', fontsize=12, color='black')
 
     # Mark agent positions and items
     for agent_name, (row, col, item) in agents.items():
-        ax.scatter(col, row, marker='o', s=300, label=agent_name, edgecolors='black', linewidths=1.5)
-        ax.text(col, row, agent_name, ha='center', va='center', color='white', fontsize=9)
+        print(agent_name,row,col,item)
+        ax.scatter(col, l-row, marker='o', s=300, label=agent_name, edgecolors='black', linewidths=1.5)
+        ax.text(col, l-row, agent_name, ha='center', va='center', color='white', fontsize=9)
         if item != 0:
-            ax.text(col, row + 0.3, f'Item: {item}', ha='center', va='center', color='yellow', fontsize=7,
+            ax.text(col, l-row + 0.3, f'Item: {item}', ha='center', va='center', color='yellow', fontsize=7,
                     fontweight='bold')
+
+    #
 
     # Set up grid lines
     ax.set_xticks(np.arange(-0.5, observation.shape[1], 1))

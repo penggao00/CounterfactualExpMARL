@@ -1,3 +1,4 @@
+from nbformat.v2 import downgrade
 
 action_mp=[[0,0],[0,1],[1,0],[0,-1],[-1.0]]
 
@@ -34,7 +35,7 @@ class agent_fixedpolicy():
                 else:
                     return 1 # move right when at bottom
             elif agent2[2]==2:
-                if agent2[0]>0:
+                if agent2[1]>0:
                     return 4 # move up
                 else:
                     return 1 # move right when at bottom
@@ -73,6 +74,8 @@ class agent1_fix:
         self.opt=opt
     def extract(self,x):
         self.agent_name=x["agent_name"]
+        if self.agent_name!="agent_1":
+            assert "wrong agentss"
         for agent in x["others"]:
             if agent!=self.agent_name:
                 self.teammate=x["others"][agent]
@@ -101,38 +104,81 @@ class agent2_fix:
         self.opt=opt
     def extract(self,x):
         self.agent_name=x["agent_name"]
+        # self.agent_name=x["agent_name"]
+        if self.agent_name!="agent_2":
+            assert "wrong agentss"
         for agent in x["others"]:
             if agent!=self.agent_name:
-                self.teammate=x["others"][agent]
-        self.info=x["agent"]
+                self.teammate=x["others"]["agent_1"]
+        self.info=x["others"]["agent_2"]
         self.map=x["observation"]
 
-    def predict(self, x):
+        # print(self.agent_name,self.teammate,self.info,x)
+
+    def predict(self, x):  #action_mp=[[0,0],[0,1],[1,0],[0,-1],[-1,0]] stay, right, down, left, up
         self.extract(x)
         agent2=self.info
         l=len(self.map)
         if agent2[2]==0:
-            if self.map[0][1]!=7 or self.teammate[0]<l-self.teammate[0]:
+            if self.map[0][1]==7 and self.map[l-1][1]==7:
+                # no item on the port, follow the other agent
+                if self.teammate[0]==l-self.teammate[0]-1:
+                    return 0
+
+                if self.teammate[0]<l-self.teammate[0]-1:
+                    return 4 #up
+                else:
+                    return 2 #down
+            elif self.map[0][1]!=7 and self.map[l-1][1]==7:
+                #if [0,1] have item, go up then left
                 if agent2[0]!=0:
                     return 4 # up
                 else:
                     return 3 #left
-            elif self.map[l-1][1]!=7 or self.teammate[0]>l-self.teammate[0]:
-                if agent2[0]!=l - 1:
-                    return 2 # down
+            elif self.map[0][1]==7 and self.map[l-1][1]!=7:
+                # [l-1,1] have item, go down then left
+                if agent2[0] != l - 1:
+                    return 2  # down
                 else:
-                    return 3 #left
+                    return 3  # left
+            elif self.map[0][1]!=7 and self.map[l-1][1]!=7:
+                if agent2[0]<l-agent2[0]-1:
+                    # up is closer, then go up
+                    ret=4
+                else:
+                    # down is closer, then go down
+                    ret=2
+                if agent2[0]==0 or agent2[0]==l-1:
+                    # if agent is next to the port, go left to collect item.
+                    ret=3
+                return ret
+
+
+            # if self.map[0][1]!=7 or self.teammate[0]<l-self.teammate[0]-1:
+            #     if agent2[0]!=0:
+            #         return 4 # up
+            #     else:
+            #         return 3 #left
+            # elif self.map[l-1][1]!=7 or self.teammate[0]>l-self.teammate[0]-1:
+            #     if agent2[0]!=l - 1:
+            #         return 2 # down
+            #     else:
+            #         return 3 #left
         else:
             if agent2[2]==1:
-                if agent2[0]<len(self.map)-1:
+                # if agent2[0]>0:
+                if agent2[0]<l-1:
                     return 2 # move down
                 else:
                     return 1 # move right when at bottom
             elif agent2[2]==2:
-                if agent2[0]>0:
-                    return 4 # move up
-                else:
+                # if agent2[0]<len(self.map)-1:
+                if agent2[1]<l-1:
                     return 1 # move right when at bottom
+                else:
+                    return 4 # move up
+
+
         return 0
     def get_action_prob(self,obs, a):
         if self.predict(obs)==a:
