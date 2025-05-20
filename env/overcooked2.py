@@ -205,21 +205,27 @@ class wrapped_env_cf(gym.Wrapper):
         ag=self.agents[self.idx]
         return self.env.observe()[ag]
 
-    def step(self, action):
+    def step(self, action=None):
         ret = self.env.observe()
         actions=[]
+        opponent_action=None
         for agent in self.agents:
             i=self.env.agents.index(agent)
+
             obs=ret[agent]
 
             a=self.agent_policy[i].predict(obs)
+            if i != self.idx:
+                opponent_action=a
             actions.append(a)
         # print(actions)
-        actions[self.idx]=action
+        if action is not None:
+            actions[self.idx]=action
         # print(actions)
         # return self.env.step(actions)
         observe, reward, done, _ = self.env.step(actions)
         ag=self.agents[self.idx]
+        _["opponent_action"]= opponent_action
         return observe[ag],reward,done,_
 
     def get_actions(self,state):
@@ -292,7 +298,7 @@ class wrapped_env_cf(gym.Wrapper):
     def render(self):
         draw(self.opponent_view())
 
-def draw(state):
+def draw(state,target):
     import matplotlib.pyplot as plt
     # Your provided data
     observation = np.array(state["observation"])

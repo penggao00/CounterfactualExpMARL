@@ -85,7 +85,7 @@ class agent1_fix:
     def predict(self, x):
         self.extract(x)
         agent1 = self.info
-        if self.info[0]==0 or self.info[0]==len(self.map):
+        if self.info[0]==0 or self.info[0]==len(self.map)-1:
             if agent1[2]==0:
                 return 0
             else:
